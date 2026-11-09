@@ -29,9 +29,11 @@ jobs:
         with: { gradle-version: '8.10.2' }
       - name: Сборка debug APK (подписан debug-ключом, ставится на любой Android)
         working-directory: android
-        run: gradle assembleDebug --stacktrace --console=plain 2>&1 | tee ../gradle.log
-      - name: Лог Gradle при падении (для диагностики)
-        if: failure()
+        run: |
+          set -o pipefail
+          gradle assembleDebug --stacktrace --console=plain 2>&1 | tee ../gradle.log
+      - name: Лог Gradle (всегда, для диагностики)
+        if: always()
         uses: actions/upload-artifact@v4
         with: { name: gradle-log, path: gradle.log }
       - name: Проверка APK
