@@ -20,9 +20,11 @@ jobs:
         with: { distribution: temurin, java-version: 17 }
       - name: Android SDK (предустановлен на раннере)
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" >/dev/null
+          echo "ANDROID_HOME=$ANDROID_HOME"; ls "$ANDROID_HOME" || true
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          which sdkmanager || ls "$ANDROID_HOME/cmdline-tools"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.10.2' }
       - name: Сборка debug APK (подписан debug-ключом, ставится на любой Android)
