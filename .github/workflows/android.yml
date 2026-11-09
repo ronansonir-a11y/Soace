@@ -1,0 +1,40 @@
+name: Android APK
+on:
+  workflow_dispatch:
+  push: { branches: [main, 'arena/**'], paths: ['android/**', 'src/**', 'index.html', 'package.json', '.github/workflows/android.yml'] }
+permissions: { contents: write }
+jobs:
+  apk:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci && npm test && npm run build
+      - name: Зашить веб-игру в APK (assets/www)
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r dist/* android/app/src/main/assets/www/
+          ls -la android/app/src/main/assets/www
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.10.2' }
+      - name: Сборка debug APK (подписан debug-ключом, ставится на любой Android)
+        working-directory: android
+        run: gradle assembleDebug --stacktrace
+      - name: Проверка APK
+        run: |
+          ls -la android/app/build/outputs/apk/debug/
+          cp android/app/build/outputs/apk/debug/app-debug.apk AETHER-6.apk
+          unzip -l AETHER-6.apk | grep -E "assets/www/index.html|classes" | head
+      - uses: actions/upload-artifact@v4
+        with: { name: AETHER-6-android, path: AETHER-6.apk }
+      - name: Релиз в GitHub Releases (только ручной запуск)
+        if: github.event_name == 'workflow_dispatch'
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          TAG="apk-$(date +%Y%m%d-%H%M)"
+          gh release create "$TAG" AETHER-6.apk --title "AETHER-6 APK $TAG" \
+            --notes "Играбельный Android APK (WebView, игра зашита внутрь, интернет не нужен). Собрано из коммита $GITHUB_SHA."
