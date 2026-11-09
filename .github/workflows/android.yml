@@ -1,0 +1,58 @@
+name: Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'arena/**']
+    tags: ['v*']
+    paths-ignore: ['**.md']
+permissions: { contents: write, issues: write }
+jobs:
+  apk:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci && npm test && npm run build
+      - name: Зашить веб-игру в APK (assets/www)
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r dist/* android/app/src/main/assets/www/
+          ls -la android/app/src/main/assets/www
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Android SDK (предустановлен на раннере)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"; ls "$ANDROID_HOME" || true
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          which sdkmanager || ls "$ANDROID_HOME/cmdline-tools"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.10.2' }
+      - name: Сборка debug APK (подписан debug-ключом, ставится на любой Android)
+        working-directory: android
+        run: |
+          set -o pipefail
+          gradle assembleDebug --stacktrace --console=plain 2>&1 | tee ../gradle.log
+      - name: Диагностика в issue при падении Gradle
+        if: failure()
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          { echo 'Автодиагностика CI (ключевые строки лога Gradle):'; echo '```'; grep -nE -B2 -A8 "FAILURE|What went wrong|Caused by:|error:|Execution failed" gradle.log | head -120; echo '--- ХВОСТ ---'; tail -c 1500 gradle.log; echo '```'; } > issue-body.md
+          gh issue create --title "CI: падение сборки APK (автодиагностика)" --body-file issue-body.md || true
+      - name: Проверка APK
+        run: |
+          ls -la android/app/build/outputs/apk/debug/
+          cp android/app/build/outputs/apk/debug/app-debug.apk AETHER-6.apk
+          unzip -l AETHER-6.apk | grep -E "assets/www/index.html|classes" | head
+      - uses: actions/upload-artifact@v4
+        with: { name: AETHER-6-android, path: AETHER-6.apk }
+      - name: Релиз в GitHub Releases (тег v* или ручной запуск)
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then TAG="apk-$(date +%Y%m%d-%H%M)"; fi
+          gh release create "$TAG" AETHER-6.apk --title "AETHER-6 APK $TAG" \
+            --notes "Играбельный Android APK (WebView, игра зашита внутрь, интернет не нужен). Собрано из коммита $GITHUB_SHA."

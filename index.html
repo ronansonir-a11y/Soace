@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>AETHER-6 — космический симулятор</title>
+<style>
+ html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#bfe6ff;font-family:ui-monospace,Menlo,Consolas,monospace;touch-action:none;-webkit-user-select:none;user-select:none}
+ #c{position:fixed;inset:0;display:block}
+ .panel{position:fixed;background:rgba(4,16,30,.72);border:1px solid rgba(90,200,255,.45);border-radius:8px;padding:8px 10px;backdrop-filter:blur(3px);z-index:5}
+ #hudTL{top:10px;left:10px;min-width:170px;font-size:12px;line-height:1.5}
+ .bar{height:8px;background:#12283c;border:1px solid #2b5876;border-radius:4px;overflow:hidden;margin:2px 0 6px}
+ .bar>i{display:block;height:100%;background:#37b6ff;transition:width .15s}
+ #hullBar>i{background:#ffb347}.bar>i.enemy{background:#ff5470}
+ #hudBR{right:10px;bottom:10px;font-size:12px;text-align:right;line-height:1.5}
+ #targetBox{top:10px;right:10px;font-size:12px;min-width:180px}
+ #msg{top:12%;left:50%;transform:translateX(-50%);font-size:15px;text-align:center;color:#dff4ff;text-shadow:0 0 8px #37f;pointer-events:none;z-index:6;position:fixed;width:92%}
+ #radar{position:fixed;left:10px;bottom:10px;z-index:5;background:rgba(4,16,30,.6);border:1px solid rgba(90,200,255,.4);border-radius:50%}
+ #lead,#fpm{position:fixed;z-index:4;pointer-events:none;color:#7dff8a;font-size:20px;transform:translate(-50%,-50%);display:none}
+ #fpm{color:#ffd166;font-size:15px}
+ #cross{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#bfe6ff;font-size:22px;z-index:4;pointer-events:none;text-shadow:0 0 6px #37f}
+ #warp{position:fixed;inset:0;z-index:8;display:none}
+ #menu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#06182e 0%,#000 75%)}
+ #menu .card{max-width:640px;width:92%;text-align:center;padding:28px;border:1px solid #2b7fb8;border-radius:14px;background:rgba(3,14,26,.9)}
+ h1{letter-spacing:6px;color:#dff4ff;text-shadow:0 0 18px #37b6ff;margin:4px 0}
+ button{background:#0a2c47;color:#bfe6ff;border:1px solid #37b6ff;border-radius:8px;padding:10px 16px;font:inherit;cursor:pointer;margin:4px}
+ button:hover{background:#12507c}button:active{transform:scale(.97)}
+ input{background:#04122a;color:#bfe6ff;border:1px solid #2b7fb8;border-radius:6px;padding:8px;font:inherit}
+ .controls{font-size:12px;text-align:left;line-height:1.65;color:#8fc7e8;margin:14px auto;max-width:520px}
+ #station,#galaxy{top:50%;left:50%;transform:translate(-50%,-50%);z-index:15;max-width:680px;width:92%;max-height:86vh;overflow:auto;display:none;font-size:13px}
+ #station table,#galaxy table{width:100%;border-collapse:collapse}#station td,#station th{padding:3px 5px;border-bottom:1px solid #173a55}
+ .pip{cursor:pointer;padding:0 2px}.on{color:#ffd166}.off{color:#33566e}
+ /* Сенсорное управление (Android) */
+ #touch{position:fixed;inset:0;z-index:9;display:none;pointer-events:none}
+ #stick{position:absolute;left:26px;bottom:96px;width:118px;height:118px;border:2px solid rgba(120,210,255,.5);border-radius:50%;pointer-events:auto;background:rgba(20,60,100,.25)}
+ #stickKnob{position:absolute;left:38px;top:38px;width:42px;height:42px;border-radius:50%;background:rgba(140,220,255,.55)}
+ .tbtn{position:absolute;pointer-events:auto;width:66px;height:66px;border-radius:50%;border:2px solid rgba(120,210,255,.6);background:rgba(20,60,100,.4);color:#dff4ff;font:11px ui-monospace,monospace}
+ #btnFire{right:26px;bottom:110px}#btnMsl{right:104px;bottom:64px}#btnBoost{right:30px;bottom:196px}#btnDock{right:112px;bottom:150px}
+ @media (pointer:coarse){ #hudBR{display:none} }
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="cross">＋</div><div id="lead">◇</div><div id="fpm">○</div>
+<div class="panel" id="hudTL">ЩИТ<div class="bar"><i id="shieldBar" style="width:100%"></i></div>КОРПУС<div class="bar" id="hullBar"><i id="hullBarFill" style="width:100%"></i></div>
+<div id="shipStats"></div><div>⚡ ЭНЕРГИЯ <span id="pips"></span></div><div id="cargoInfo"></div></div>
+<div class="panel" id="targetBox">ЦЕЛЬ: —</div>
+<div class="panel" id="hudBR"></div>
+<canvas id="radar" width="150" height="150"></canvas>
+<div id="msg"></div><canvas id="warp"></canvas>
+<div id="touch"><div id="stick"><div id="stickKnob"></div></div>
+<button class="tbtn" id="btnFire">ОГОНЬ</button><button class="tbtn" id="btnMsl">РАКЕТА</button><button class="tbtn" id="btnBoost">БУСТ</button><button class="tbtn" id="btnDock">СТЫК</button></div>
+<div class="panel" id="station"></div><div class="panel" id="galaxy"></div>
+<div id="menu"><div class="card"><div style="font-size:12px;color:#5db9ec">АВТОНОМНЫЙ ПРОЕКТ · СЕКТОРНАЯ СЕТЬ · 50 СИСТЕМ</div><h1>AETHER-6</h1>
+<p style="color:#8fc7e8;font-size:13px">6DoF-симулятор: ньютоновская физика, процедурные системы, пираты, торговля и майнинг.</p>
+<label>Сид вселенной <input id="seed" value="AETHER-6" size="12"/></label> <button id="startBtn">▶ ЗАПУСК</button>
+<div class="controls"><b>Управление:</b> мышь — обзор · <b>W/S</b> тяга · <b>A/D</b> стрейф · <b>R/F</b> вверх/вниз · <b>Q/E</b> крен · <b>Shift</b> буст · <b>Space</b> лазеры · <b>X</b> пушки · <b>C</b> ракета (захват 2 с) · <b>T</b> трактор · <b>G</b> майнинг · <b>V</b> Flight Assist · <b>B</b> круиз · <b>M</b> карта прыжков · <b>E</b> стыковка · <b>Tab</b> цель · стрелки ←→↑↓ — энергия ENG/WEP/SYS · 📱 Сенсор: левый стик + кнопки</div>
+<div style="font-size:11px;color:#4d7ea3">v1.0 · собрано автономным ИИ-агентом · Three.js + TypeScript</div></div></div>
+<script type="module" src="/src/main.ts"></script></body></html>
