@@ -7,8 +7,10 @@
 
 ## ▶ Играть
 
-- **Браузер:** GitHub Pages (ссылка — в разделе About репозитория и в Actions → Pages) или локально `npm run dev`.
-- **Android:** APK из [GitHub Releases](../../releases) / артефакта workflow **Android APK** — ставится на любой
+- **Браузер:** локально/в превью `npm run dev` · GitHub Pages: один раз включить
+  **Settings → Pages → Source: GitHub Actions** (у CI-токена нет прав включить самому) —
+  после этого каждый пуш сам публикует игру; job `build` (тесты+сборка) уже зелёный.
+- **Android:** 📦 **[AETHER-6.apk из релиза v1.0.0](../../releases/tag/v1.0.0)** (591 КБ, собран CI) — ставится на любой
   Android 7+ (debug-подпись), интернет игре не нужен: весь билд зашит в `assets/www` и отдаётся
   WebView через `WebViewAssetLoader`.
 
