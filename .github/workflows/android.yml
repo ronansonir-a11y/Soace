@@ -36,7 +36,7 @@ jobs:
         if: failure()
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          { echo 'Автодиагностика CI (лог Gradle, хвост):'; echo '```'; tail -c 6000 gradle.log 2>/dev/null || echo 'gradle.log пуст'; echo '```'; } > issue-body.md
+          { echo 'Автодиагностика CI (ключевые строки лога Gradle):'; echo '```'; grep -nE -B2 -A8 "FAILURE|What went wrong|Caused by:|error:|Execution failed" gradle.log | head -120; echo '--- ХВОСТ ---'; tail -c 1500 gradle.log; echo '```'; } > issue-body.md
           gh issue create --title "CI: падение сборки APK (автодиагностика)" --body-file issue-body.md || true
       - name: Проверка APK
         run: |
