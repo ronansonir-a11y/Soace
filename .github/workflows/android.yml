@@ -2,7 +2,7 @@ name: Android APK
 on:
   workflow_dispatch:
   push: { branches: [main, 'arena/**'], paths: ['android/**', 'src/**', 'index.html', 'package.json', '.github/workflows/android.yml'] }
-permissions: { contents: write }
+permissions: { contents: write, issues: write }
 jobs:
   apk:
     runs-on: ubuntu-22.04
@@ -32,10 +32,12 @@ jobs:
         run: |
           set -o pipefail
           gradle assembleDebug --stacktrace --console=plain 2>&1 | tee ../gradle.log
-      - name: Лог Gradle (всегда, для диагностики)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with: { name: gradle-log, path: gradle.log }
+      - name: Диагностика в issue при падении Gradle
+        if: failure()
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          { echo 'Автодиагностика CI (лог Gradle, хвост):'; echo '```'; tail -c 6000 gradle.log 2>/dev/null || echo 'gradle.log пуст'; echo '```'; } > issue-body.md
+          gh issue create --title "CI: падение сборки APK (автодиагностика)" --body-file issue-body.md || true
       - name: Проверка APK
         run: |
           ls -la android/app/build/outputs/apk/debug/
